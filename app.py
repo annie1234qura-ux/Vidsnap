@@ -4,8 +4,7 @@ import os
 import uuid
 import threading
 import time
-
-FFMPEG_PATH = r"C:\Users\annie\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe"
+import shutil
 
 app = Flask(__name__)
 
@@ -13,6 +12,34 @@ DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
 progress_store = {}
+
+def get_ffmpeg_path():
+    """Auto detect ffmpeg on any system"""
+    # Check if ffmpeg is in PATH
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return ffmpeg
+    # Common Windows locations
+    common = [
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+    ]
+    for path in common:
+        if os.path.exists(path):
+            return path
+    # Check WinGet install location
+    winget_base = os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages")
+    if os.path.exists(winget_base):
+        for folder in os.listdir(winget_base):
+            if "ffmpeg" in folder.lower():
+                ffmpeg_exe = os.path.join(winget_base, folder)
+                for root, dirs, files in os.walk(ffmpeg_exe):
+                    for f in files:
+                        if f == "ffmpeg.exe":
+                            return os.path.join(root, f)
+    return "ffmpeg"  # fallback, hope it's in PATH
+
+FFMPEG_PATH = get_ffmpeg_path()
 
 def clean_old_files():
     while True:
@@ -132,13 +159,12 @@ def download():
         }
     else:
         ydl_opts = {
-            "format": f"bestvideo[vcodec^=avc]+bestaudio/bestvideo+bestaudio/best",
+            "format": "bestvideo[vcodec^=avc]+bestaudio/bestvideo+bestaudio/best",
             "outtmpl": output_path + ".%(ext)s",
             "quiet": True,
             "progress_hooks": [progress_hook],
             "ffmpeg_location": FFMPEG_PATH,
             "merge_output_format": "mp4",
-            # Convert audio to AAC so it works on all players
             "postprocessor_args": {
                 "ffmpeg": ["-c:a", "aac"]
             },
@@ -190,4 +216,5 @@ def get_file(job_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
