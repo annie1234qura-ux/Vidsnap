@@ -14,12 +14,9 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 progress_store = {}
 
 def get_ffmpeg_path():
-    """Auto detect ffmpeg on any system"""
-    # Check if ffmpeg is in PATH
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
         return ffmpeg
-    # Common Windows locations
     common = [
         r"C:\ffmpeg\bin\ffmpeg.exe",
         r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
@@ -27,7 +24,6 @@ def get_ffmpeg_path():
     for path in common:
         if os.path.exists(path):
             return path
-    # Check WinGet install location
     winget_base = os.path.expanduser(r"~\AppData\Local\Microsoft\WinGet\Packages")
     if os.path.exists(winget_base):
         for folder in os.listdir(winget_base):
@@ -37,9 +33,12 @@ def get_ffmpeg_path():
                     for f in files:
                         if f == "ffmpeg.exe":
                             return os.path.join(root, f)
-    return "ffmpeg"  # fallback, hope it's in PATH
+    return "ffmpeg"
 
 FFMPEG_PATH = get_ffmpeg_path()
+
+# Cookies file path
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 
 def clean_old_files():
     while True:
@@ -71,6 +70,9 @@ def get_info():
             "no_warnings": True,
             "skip_download": True,
         }
+        if os.path.exists(COOKIES_FILE):
+            ydl_opts["cookiefile"] = COOKIES_FILE
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
@@ -169,6 +171,9 @@ def download():
                 "ffmpeg": ["-c:a", "aac"]
             },
         }
+
+    if os.path.exists(COOKIES_FILE):
+        ydl_opts["cookiefile"] = COOKIES_FILE
 
     def do_download():
         try:
